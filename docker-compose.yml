@@ -19,6 +19,14 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
+    # --- NUEVAS VARIABLES PARA LA BD ---
+      - DB_HOST=db-usuarios # El nombre del servicio de la BD en Docker Compose
+      - DB_PORT=5432
+      - DB_USER=user_usuarios
+      - DB_PASSWORD=password_usuarios
+      - DB_NAME=db_usuarios
+    depends_on: # Asegura que la BD inicie antes que el servicio
+      - db-usuarios
 
   # --- Servicio de Agenda ---
   ms-agenda:
@@ -55,3 +63,20 @@ services:
       - ms-usuarios
       - ms-agenda
       - ms-notificaciones
+
+  # --- NUEVO: Servicio de Base de Datos PostgreSQL ---
+  db-usuarios:
+    image: postgres:14-alpine # Usamos una imagen oficial de PostgreSQL
+    container_name: db_usuarios_postgres
+    environment:
+      POSTGRES_USER: user_usuarios # Define el usuario de la BD
+      POSTGRES_PASSWORD: password_usuarios # Define la contraseña
+      POSTGRES_DB: db_usuarios   # Define el nombre de la base de datos
+    ports:
+      - "5432:5432" # Expone el puerto de Postgres (opcional, para conectar desde tu máquina si necesitas)
+    volumes:
+      - postgres_data_usuarios:/var/lib/postgresql/data # Persiste los datos fuera del contenedor
+
+# --- NUEVO: Definición de Volúmenes ---
+volumes:
+  postgres_data_usuarios:
