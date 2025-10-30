@@ -36,3 +36,30 @@ ms-usuarios/
 ├── .gitignore                # Archivos y carpetas a ignorar por Git
 ├── Dockerfile                # Instrucciones para construir la imagen del contenedor
 └── package.json              # Metadatos del proyecto y dependencias (asumiendo Node.js)
+
+
+-- Conéctate a la base de datos 'db_usuarios'
+# Desde la linea de comandos ejecute este codigo sql
+
+CREATE TABLE estudiantes (
+    id VARCHAR(50) PRIMARY KEY,
+    nombreCompleto VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    carrera VARCHAR(255)
+);
+
+CREATE TABLE tutores (
+    id VARCHAR(50) PRIMARY KEY,
+    nombreCompleto VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    especialidad VARCHAR(255)
+);
+
+-- Insertar datos de ejemplo (los que tenías en memoria)
+INSERT INTO estudiantes (id, nombreCompleto, email, carrera) VALUES
+('e12345', 'Ana Torres', 'ana.torres@universidad.edu', 'Ingeniería de Software'),
+('e67890', 'Luis Garcia', 'luis.garcia@universidad.edu', 'Medicina');
+
+INSERT INTO tutores (id, nombreCompleto, email, especialidad) VALUES
+('t54321', 'Dr. Carlos Rojas', 'carlos.rojas@universidad.edu', 'Bases de Datos Avanzadas'),
+('t09876', 'Dra. Elena Solano', 'elena.solano@universidad.edu', 'Cálculo Multivariable');
