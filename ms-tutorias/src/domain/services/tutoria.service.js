@@ -2,7 +2,8 @@
 const tutoriaRepository = require('../../infrastructure/repositories/tutoria.repository');
 const usuariosClient = require('../../infrastructure/clients/usuarios.client');
 const agendaClient = require('../../infrastructure/clients/agenda.client');
-const notificacionesClient = require('../../infrastructure/clients/notificaciones.client');
+//const notificacionesClient = require('../../infrastructure/clients/notificaciones.client');
+const messageProducer = require('../../infrastructure/messaging/message.producer'); // Importar el productor de mensajes
 
 // Servicio principal para solicitar una tutoría
 const solicitarTutoria = async (datosSolicitud, correlationId) => {
@@ -40,19 +41,32 @@ const solicitarTutoria = async (datosSolicitud, correlationId) => {
         console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Tutoría PENDIENTE guardada (ID: ${nuevaTutoria.idtutoria}).`); // Usar minúscula si así lo devuelve pg
 
         // --- 4. Realizar acciones (comandos) ---
-        console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Intentando bloquear agenda...`);
+        //console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Intentando bloquear agenda...`);
+        console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Publicando evento de notificación...`);
+
         const payloadAgenda = { fechaInicio: fechaSolicitada, duracionMinutos, idEstudiante };
         await agendaClient.bloquearAgenda(idTutor, payloadAgenda, correlationId);
         console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Bloqueo de agenda exitoso.`);
 
         console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Intentando enviar notificación...`);
+        
+        // const payloadNotificacion = {
+        //     destinatario: estudiante.email,
+        //     asunto: `Tutoría de ${materia} confirmada`,
+        //     cuerpo: `Hola ${estudiante.nombrecompleto || estudiante.nombreCompleto}, tu tutoría con ${tutor.nombrecompleto || tutor.nombreCompleto} ha sido confirmada para el ${new Date(fechaSolicitada).toLocaleString()}.` // Ajustar nombre de campo si es necesario
+        // };
+
         const payloadNotificacion = {
             destinatario: estudiante.email,
             asunto: `Tutoría de ${materia} confirmada`,
-            cuerpo: `Hola ${estudiante.nombrecompleto || estudiante.nombreCompleto}, tu tutoría con ${tutor.nombrecompleto || tutor.nombreCompleto} ha sido confirmada para el ${new Date(fechaSolicitada).toLocaleString()}.` // Ajustar nombre de campo si es necesario
+            cuerpo: `Hola ${estudiante.nombrecompleto || estudiante.nombreCompleto}, tu tutoría con ${tutor.nombrecompleto || tutor.nombreCompleto} ha sido confirmada para el ${new Date(fechaSolicitada).toLocaleString()}.`,
+            correlationId: correlationId // <-- 3. Buena práctica: pasar el CID en el mensaje
         };
-        await notificacionesClient.enviarEmail(payloadNotificacion, correlationId);
-        console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Envío de notificación exitoso.`);
+
+        //await notificacionesClient.enviarEmail(payloadNotificacion, correlationId);
+        //console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Envío de notificación exitoso.`);
+        messageProducer.publishToQueue('notificaciones_email_queue', payloadNotificacion); // <- 4. Publicar en la cola
+        console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Evento de notificación publicado.`);
 
         // --- 5. Si todo fue exitoso, actualizar estado a CONFIRMADA ---
         console.log(`[MS_Tutorias Service] - CID: ${correlationId} - Actualizando estado a CONFIRMADA...`);

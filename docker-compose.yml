@@ -44,6 +44,19 @@ services:
     depends_on: # Depende de su propia BD
       - db-agenda
 
+  # --- Servicio de Message Broker ---
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine # Imagen con interfaz de gestión
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # Puerto AMQP para los servicios
+      - "15672:15672" # Puerto para la interfaz web de gestión
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbit # Usuario por defecto
+      - RABBITMQ_DEFAULT_PASS=rabbit # Contraseña por defecto
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq/
+
   # --- Servicio de Notificaciones ---
   ms-notificaciones:
     build: ./ms-notificaciones
@@ -51,6 +64,9 @@ services:
       - "3003:3003"
     environment:
       - PORT=3003
+      - RABBITMQ_URL=amqp://rabbit:rabbit@rabbitmq:5672 # URL de conexión a RabbitMQ
+    depends_on:
+      - rabbitmq # Asegura que RabbitMQ inicie antes que este servicio
   
   # --- Servicio de Tutorías (El Orquestador) ---
   ms-tutorias:
@@ -72,12 +88,14 @@ services:
       - DB_USER=user_tutorias
       - DB_PASSWORD=password_tutorias
       - DB_NAME=db_tutorias
+      - RABBITMQ_URL=amqp://rabbit:rabbit@rabbitmq:5672 # URL de conexión a RabbitMQ
     depends_on:
       - ms-auth
       - ms-usuarios
       - ms-agenda
       - ms-notificaciones
       - db-tutorias
+      - rabbitmq # Asegura que RabbitMQ inicie antes que este servicio 
 
   # --- Servicio de Base de Datos PostgreSQL ---
   db-usuarios:
@@ -121,3 +139,4 @@ volumes:
   postgres_data_usuarios:
   postgres_data_agenda:
   postgres_data_tutorias:
+  rabbitmq_data:

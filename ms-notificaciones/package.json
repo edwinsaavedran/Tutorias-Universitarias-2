@@ -11,6 +11,8 @@
   "author": "GDevArquitecto",
   "license": "ISC",
   "dependencies": {
+    "amqplib": "^0.10.9",
+    "dotenv": "^17.2.3",
     "express": "^4.19.2"
   },
   "devDependencies": {

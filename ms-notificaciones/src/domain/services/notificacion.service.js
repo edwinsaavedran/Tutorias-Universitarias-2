@@ -40,6 +40,34 @@ const enviarNotificacion = async (canal, datosNotificacion) => {
     return log;
 };
 
+// Simplificamos: este servicio ahora solo sabe enviar emails basado en el payload
+const enviarEmailNotificacion = async (payloadNotificacion) => {
+    const { destinatario, asunto, cuerpo, correlationId } = payloadNotificacion;
+
+    // Log con el CID
+    console.log(`[MS_Notificaciones Service] - CID: ${correlationId || 'N/A'} - Procesando email para: ${destinatario}`);
+
+    if (!destinatario || !asunto || !cuerpo) {
+        const error = new Error('Datos incompletos para enviar email: se necesita destinatario, asunto y cuerpo.');
+        error.statusCode = 400; // Bad Request
+        throw error;
+    }
+
+    const resultadoEnvio = await emailProvider.enviarEmail(destinatario, asunto, cuerpo);
+
+    const log = {
+        logId: randomUUID(),
+        canal: 'email',
+        destinatario: destinatario,
+        timestamp: new Date().toISOString(),
+        estado: resultadoEnvio.estado,
+        correlationId: correlationId
+    };
+    console.log(`[MS_Notificaciones Service] - CID: ${correlationId || 'N/A'} - Email simulado. Log:`, JSON.stringify(log));
+    return log;
+};
+
 module.exports = {
-    enviarNotificacion
+    //enviarNotificacion
+    enviarEmailNotificacion
 };
