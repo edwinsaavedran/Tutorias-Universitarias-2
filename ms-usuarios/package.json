@@ -13,7 +13,7 @@
     "usuarios",
     "tutoria"
   ],
-  "author": "GDevArquitecto",
+  "author": "edsaana",
   "license": "ISC",
   "dependencies": {
     "express": "^4.19.2",

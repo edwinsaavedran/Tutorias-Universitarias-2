@@ -8,7 +8,7 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js"
   },
-  "author": "GDevArquitecto",
+  "author": "edsaana",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
