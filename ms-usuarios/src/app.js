@@ -1,26 +1,21 @@
-// src/app.js
-
+// ms-usuarios/src/app.js
 const express = require('express');
+const config = require('./config'); // <-- USAR EL NUEVO CONFIG
 const usuariosRouter = require('./api/routes/usuarios.routes');
 const errorHandler = require('./api/middlewares/errorHandler');
 const correlationIdMiddleware = require('./api/middlewares/correlationId.middleware.js');
+const messageProducer = require('./infrastructure/messaging/message.producer'); // <-- IMPORTAR PRODUCTOR
 
-// Asumimos que la configuración (ej. puerto) se carga desde /config
-// Para simplificar, lo definimos aquí por ahora.
-const PORT = process.env.PORT || 3001;
+const app = express();
 
-const app = express(); // <--- CORRECCIÓN AQUÍ
+app.use(express.json());
+app.use(correlationIdMiddleware);
 
-// Middlewares
-app.use(express.json()); // Para parsear bodies JSON
-app.use(correlationIdMiddleware); // <--- AÑADIR ESTA LÍNEA
-
-// Rutas
 app.use('/usuarios', usuariosRouter);
 
-// Manejador de errores (debe ser el último middleware)
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-    console.log(`MS_Usuarios escuchando en el puerto ${PORT}`);
+app.listen(config.port, () => { // <-- Usar config.port
+    console.log(`MS_Usuarios escuchando en el puerto ${config.port}`);
+    messageProducer.connect(); // <-- INICIAR CONEXIÓN A RABBITMQ
 });

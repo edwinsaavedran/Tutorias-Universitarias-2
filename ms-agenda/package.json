@@ -11,6 +11,8 @@
   "author": "edsaana",
   "license": "ISC",
   "dependencies": {
+    "amqplib": "^0.10.9",
+    "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "pg": "^8.16.3"
   },

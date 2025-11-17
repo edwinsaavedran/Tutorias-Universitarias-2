@@ -6,6 +6,7 @@ const errorHandler = require('./api/middlewares/errorHandler'); // Reutilizamos 
 const correlationIdMiddleware = require('./api/middlewares/correlationId.middleware.js');
 const amqp = require('amqplib'); 
 const notificacionService = require('./domain/services/notificacion.service'); //  Importar el servicio de notificaciones
+const messageProducer = require('./infrastructure/messaging/message.producer'); // <-- IMPORTAR PRODUCTOR
 
 const PORT = process.env.PORT || 3003;
 
@@ -75,5 +76,6 @@ const startConsumer = async () => {
 // Iniciar el servidor y el consumidor de RabbitMQ
 app.listen(config.port, () => {
     console.log(`MS_Notificaciones (API) escuchando en el puerto ${config.port}`);
-    startConsumer(); // <-- Iniciar el consumidor
+    startConsumer();
+    messageProducer.connect(); // <-- INICIAR CONEXIÓN DEL PRODUCTOR
 });
