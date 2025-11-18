@@ -18,18 +18,12 @@ const bloquearAgenda = async (idTutor, payload, correlationId) => {
     return response.data;
 };
 
-// La función ahora acepta correlationId como parámetro
-const getUsuario = async (tipo, id, correlationId) => {
-    try {
-        const url = `${usuariosServiceUrl}/${tipo}/${id}`;
-        // Se añade el header a la petición de axios
-        const response = await axios.get(url, {
-            headers: { 'X-Correlation-ID': correlationId }
-        });
-        return response.data;
-    } catch (error) {
-        // Manejo básico del error, puedes personalizarlo según tus necesidades
-        throw error;
-    }
-}
-module.exports = { verificarDisponibilidad, bloquearAgenda, getUsuario };
+const cancelarBloqueo = async (idBloqueo, correlationId) => {
+    const url = `${agendaServiceUrl}/bloqueos/${idBloqueo}`;
+    const response = await axios.delete(url, {
+        headers: { 'X-Correlation-ID': correlationId }
+    });
+    return response.data;
+};
+
+module.exports = { verificarDisponibilidad, bloquearAgenda, cancelarBloqueo };

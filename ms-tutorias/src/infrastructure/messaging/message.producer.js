@@ -27,7 +27,16 @@ connect();
 const publishToQueue = async (queueName, messagePayload) => {
     if (!channel) { return; }
     try {
-        await channel.assertQueue(queueName, { durable: true });
+        // Declarar la cola con los mismos argumentos que ms-notificaciones (DLQ)
+        // Esto evita el error PRECONDITION_FAILED cuando la cola ya existe con DLX configurado
+        const dlxExchangeName = 'notificaciones_dlx';
+        await channel.assertQueue(queueName, {
+            durable: true,
+            arguments: {
+                'x-dead-letter-exchange': dlxExchangeName,
+                'x-dead-letter-routing-key': ''
+            }
+        });
         const messageBuffer = Buffer.from(JSON.stringify(messagePayload));
         channel.sendToQueue(queueName, messageBuffer, { persistent: true });
         console.log(`[MS_Tutorias] Mensaje publicado en la cola '${queueName}'`);
