@@ -27,8 +27,32 @@ const startConsumer = async () => {
         connection = await amqp.connect(config.rabbitmqUrl);
         const channel = await connection.createChannel();
 
+        // --- Configuración de Dead Letter Queue (DLQ) ---
+        const dlxExchangeName = 'notificaciones_dlx';
+        const dlqQueueName = 'notificaciones_dlq';
         const queueName = 'notificaciones_email_queue';
-        await channel.assertQueue(queueName, { durable: true });
+
+        // 1. Declarar el exchange DLX (Dead Letter Exchange)
+        await channel.assertExchange(dlxExchangeName, 'direct', { durable: true });
+        console.log(`[MS_Notificaciones] Exchange DLX declarado: ${dlxExchangeName}`);
+
+        // 2. Declarar la cola DLQ (Dead Letter Queue)
+        await channel.assertQueue(dlqQueueName, { durable: true });
+        console.log(`[MS_Notificaciones] Cola DLQ declarada: ${dlqQueueName}`);
+
+        // 3. Vincular (bind) la cola DLQ al exchange DLX
+        await channel.bindQueue(dlqQueueName, dlxExchangeName, '');
+        console.log(`[MS_Notificaciones] Cola DLQ vinculada al exchange DLX`);
+
+        // 4. Declarar la cola principal con configuración de DLX
+        await channel.assertQueue(queueName, {
+            durable: true,
+            arguments: {
+                'x-dead-letter-exchange': dlxExchangeName, // Usar el exchange DLX como deadLetterExchange
+                'x-dead-letter-routing-key': '' // Routing key vacío para el exchange direct
+            }
+        });
+        console.log(`[MS_Notificaciones] Cola principal declarada con DLX: ${queueName}`);
 
         // prefetch(1) asegura que el worker solo tome 1 mensaje a la vez.
         // No tomará el siguiente hasta que haga 'ack' (acuse) del actual.
@@ -53,10 +77,11 @@ const startConsumer = async () => {
 
                 } catch (error) {
                     console.error(`[MS_Notificaciones] Error al procesar mensaje: ${error.message}`, payload);
-                    // 4. Rechazar (nack) el mensaje. false = no volver a encolar (o true si quieres reintentar)
-                    // Podríamos moverlo a una cola de "dead-letter" (DLQ) en un futuro.
+                    // 4. Rechazar (nack) el mensaje. 
+                    // false, false = no volver a encolar y no requeue
+                    // El mensaje será enviado automáticamente a la DLQ debido a la configuración x-dead-letter-exchange
                     channel.nack(msg, false, false);
-                    console.log(`[MS_Notificaciones] Mensaje rechazado (nack).`);
+                    console.log(`[MS_Notificaciones] Mensaje rechazado (nack) y enviado a DLQ.`);
                 }
             }
         }, {

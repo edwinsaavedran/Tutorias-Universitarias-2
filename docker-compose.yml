@@ -61,6 +61,43 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq/
 
+  # --- Toxiproxy: Proxy de Red para Inyección de Latencia ---
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.5.0
+    container_name: toxiproxy
+    ports:
+      - "8474:8474" # Puerto de la API de control de Toxiproxy
+      - "8475:8475" # Puerto del proxy para ms-usuarios
+    depends_on:
+      - ms-usuarios
+
+  # --- Inicializador de Toxiproxy: Configura el proxy después de que Toxiproxy esté listo ---
+  # NOTA: Por defecto, la latencia está en 0ms para que el sistema funcione normalmente.
+  # Para probar el Circuit Breaker, activa la latencia de 5000ms manualmente.
+  toxiproxy-init:
+    image: curlimages/curl:latest
+    container_name: toxiproxy_init
+    depends_on:
+      toxiproxy:
+        condition: service_started
+      ms-usuarios:
+        condition: service_started
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Esperando a que Toxiproxy esté completamente listo..."
+        sleep 10
+        echo "Creando proxy para ms-usuarios..."
+        curl -X POST http://toxiproxy:8474/proxies -H "Content-Type: application/json" -d '{"name":"ms-usuarios-proxy","listen":"0.0.0.0:8475","upstream":"ms-usuarios:3001","enabled":true}' || echo "Proxy ya existe o error al crear"
+        echo "Configurando latencia inicial en 0ms (sistema funcionando normalmente)..."
+        curl -X POST http://toxiproxy:8474/proxies/ms-usuarios-proxy/toxics -H "Content-Type: application/json" -d '{"name":"latency","type":"latency","stream":"downstream","toxicity":1.0,"attributes":{"latency":0}}' || echo "Toxic ya existe o error al añadir"
+        echo "Configuración de Toxiproxy completada!"
+        echo "Proxy 'ms-usuarios-proxy' escuchando en puerto 8475 con 0ms de latencia (normal)"
+        echo "Para activar latencia de 5000ms y probar Circuit Breaker, ejecuta:"
+        echo "  docker exec toxiproxy_init curl -X POST http://toxiproxy:8474/proxies/ms-usuarios-proxy/toxics/latency -H 'Content-Type: application/json' -d '{\"attributes\":{\"latency\":5000}}'"
+        # Mantener el contenedor corriendo
+        while true; do sleep 3600; done
+
   # --- Servicio de Notificaciones ---
   ms-notificaciones:
     build: ./ms-notificaciones
@@ -82,7 +119,8 @@ services:
       # --- CAMBIO CRÍTICO DE NETWORKING - Identificacion y Nombramiento de Servicios ---
       # Dentro de la red de Docker, los servicios se comunican usando su nombre de servicio,
       # no 'localhost'. Docker Compose se encarga de resolver estos nombres.
-      - MS_USUARIOS_URL=http://ms-usuarios:3001/usuarios
+      # --- TOXIPROXY: Re-ruteamos ms-usuarios a través de Toxiproxy para inyectar latencia ---
+      - MS_USUARIOS_URL=http://toxiproxy:8475/usuarios
       - MS_AGENDA_URL=http://ms-agenda:3002/agenda
       - MS_NOTIFICACIONES_URL=http://ms-notificaciones:3003/notificaciones
       - JWT_SECRET=ESTE_ES_UN_SECRETO_PARA_DESARROLLO_NO_USAR_EN_PROD
@@ -99,7 +137,8 @@ services:
       - ms-agenda
       - ms-notificaciones
       - db-tutorias
-      - rabbitmq # Asegura que RabbitMQ inicie antes que este servicio
+      - rabbitmq
+      - toxiproxy # Asegura que Toxiproxy inicie antes que este servicio
 
   # --- Cliente Web Interactivo ---
   client-sim:
@@ -137,7 +176,7 @@ services:
       POSTGRES_PASSWORD: password_usuarios # Define la contraseña
       POSTGRES_DB: db_usuarios # Define el nombre de la base de datos
     ports:
-      - "5432:5432" # Expone el puerto 5432 en el host y 5432 para el Postgres dentro del contenedor
+      - "5435:5432" # Expone el puerto 5432 en el host y 5432 para el Postgres dentro del contenedor
     volumes:
       - postgres_data_usuarios:/var/lib/postgresql/data # Persiste los datos fuera del contenedor
 

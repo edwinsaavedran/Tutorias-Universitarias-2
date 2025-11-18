@@ -59,7 +59,24 @@ const saveBloqueo = async (datosBloqueo) => {
     }
 };
 
+const eliminarBloqueo = async (idBloqueo) => {
+    const queryText = 'DELETE FROM bloqueos WHERE idBloqueo = $1 RETURNING *';
+    try {
+        const res = await db.query(queryText, [idBloqueo]);
+        if (res.rows.length === 0) {
+            const error = new Error(`Bloqueo con ID ${idBloqueo} no encontrado`);
+            error.statusCode = 404;
+            throw error;
+        }
+        return res.rows[0]; // Retorna el bloqueo eliminado
+    } catch (err) {
+        console.error('Error ejecutando query eliminarBloqueo:', err.stack);
+        throw err;
+    }
+};
+
 module.exports = {
     findBloqueosByTutor,
-    saveBloqueo
+    saveBloqueo,
+    eliminarBloqueo
 };

@@ -17,7 +17,8 @@ const track = (cid, message, status = 'INFO') => {
 
 const solicitarTutoria = async (datosSolicitud, correlationId) => {
     const { idEstudiante, idTutor, fechaSolicitada, duracionMinutos, materia } = datosSolicitud;
-    let nuevaTutoria; 
+    let nuevaTutoria;
+    let idBloqueo = null; // Variable para guardar el ID del bloqueo
 
     try {
         // --- 1. Validar usuarios ---
@@ -45,8 +46,10 @@ const solicitarTutoria = async (datosSolicitud, correlationId) => {
         // --- 4. Comandos de la Saga ---
         track(correlationId, 'Bloqueando horario en agenda...');
         const payloadAgenda = { fechaInicio: fechaSolicitada, duracionMinutos, idEstudiante };
-        await agendaClient.bloquearAgenda(idTutor, payloadAgenda, correlationId);
-        track(correlationId, 'Bloqueo de agenda exitoso.');
+        const bloqueoResultado = await agendaClient.bloquearAgenda(idTutor, payloadAgenda, correlationId);
+        // Guardar el idBloqueo devuelto por bloquearAgenda
+        idBloqueo = bloqueoResultado.idbloqueo || bloqueoResultado.idBloqueo;
+        track(correlationId, `Bloqueo de agenda exitoso. Bloqueo ID: ${idBloqueo}`);
 
         track(correlationId, 'Publicando evento de notificación en RabbitMQ...');
         const payloadNotificacion = {
@@ -69,6 +72,18 @@ const solicitarTutoria = async (datosSolicitud, correlationId) => {
         // --- Compensación ---
         console.error(`[MS_Tutorias Service] - CID: ${correlationId} - ERROR CAPTURADO: ${error.message}`);
         track(correlationId, `ERROR: ${error.message}`, 'ERROR'); // <-- Publicar evento de error
+
+        // Si se bloqueó la agenda, desbloquearla (compensación)
+        if (idBloqueo) {
+            try {
+                track(correlationId, 'COMPENSACIÓN: Desbloqueando agenda...', 'ERROR');
+                await agendaClient.cancelarBloqueo(idBloqueo, correlationId);
+                track(correlationId, `COMPENSACIÓN: Bloqueo ${idBloqueo} cancelado exitosamente.`, 'ERROR');
+            } catch (compensacionError) {
+                track(correlationId, `ERROR en compensación de agenda: ${compensacionError.message}`, 'ERROR');
+                console.error(`[MS_Tutorias Service] - CID: ${correlationId} - Error al cancelar bloqueo: ${compensacionError.message}`);
+            }
+        }
 
         if (nuevaTutoria && nuevaTutoria.idtutoria) {
             track(correlationId, 'Iniciando compensación: Marcando tutoría como FALLIDA.', 'ERROR');

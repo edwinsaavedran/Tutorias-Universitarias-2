@@ -38,7 +38,26 @@ const postBloqueo = async (req, res, next) => {
     }
 };
 
+const deleteBloqueo = async (req, res, next) => {
+    const cid = req.correlationId; // <-- Obtener Correlation ID
+    try {
+        track(cid, `Intentando cancelar bloqueo: ${req.params.idBloqueo}`);
+        const { idBloqueo } = req.params;
+
+        const bloqueoEliminado = await agendaService.cancelarBloqueo(idBloqueo);
+        track(cid, `Bloqueo cancelado exitosamente. Bloqueo ID: ${bloqueoEliminado.idbloqueo}`);
+        res.status(200).json({
+            message: 'Bloqueo cancelado exitosamente',
+            bloqueo: bloqueoEliminado
+        });
+    } catch (error) {
+        track(cid, `Error en deleteBloqueo: ${error.message}`, 'ERROR');
+        next(error);
+    }
+};
+
 module.exports = {
     getDisponibilidad,
-    postBloqueo
+    postBloqueo,
+    deleteBloqueo
 };
